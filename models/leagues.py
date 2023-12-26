@@ -16,7 +16,7 @@ from .threading_db import ThreadedDB, Request
 
 from FelsonSports.DB import NBADB, NCAABDB
 
-today = datetime.date.today()
+today = datetime.date.today() - datetime.timedelta(1)
 
 def calculate_sos(weight, expected_results, actual_results):
     total_weighted_difference = 0
@@ -137,6 +137,38 @@ class League:
                          "defense_poss", "defense_pts", "defense_fga", "defense_fgm", "defense_fg%",
                          "defense_fta", "defense_ftm", "defense_ft%", "defense_tpa", "defense_tpm",
                          "defense_tp%", "defense_tov%", "defense_oreb%", "defense_dreb%",)
+        return req
+
+
+    def getOddsView(self, gameId):
+        """This function is put into a thread and sent to dB.run
+        """
+        game = self.league.games[gameId]
+        awayML, homeML = [game.odds.getItem("money", "{}ML".format(hA)) for hA in ("away", "home")]
+
+        req = Request()
+        req.args = (awayML, homeML)
+        req.callback = None
+        req.cmd = mlHistoryCmd
+        req.fetch = "fetchOne"
+        req.labels =  ("win%", "winROI", "cover%", "coverROI", "oppMed", "spreadMed",
+                    "resultMed")
+
+
+
+    def getOverview(self):
+        """This function is put into a thread and sent to dB.run
+        """
+        options = self._options.copy()
+        options["hAJoin"] = "(team.team_id = gm.home_id OR team.team_id = gm.away_id)"
+        req = Request()
+        req.args = (self.league.season, )
+        req.callback = None
+        req.cmd = overviewCmd.format(options)
+        req.fetch = "fetchAll"
+        req.labels = ("team", "gp", "win%", "ML", "moneyROI", "oppML", "oppROI",
+                        "spread", "result", "cover%", "atsROI", "o/u", "total",
+                        "over%", "overROI", "underROI", "teamId")
         return req
 
 

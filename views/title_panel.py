@@ -10,7 +10,7 @@ imagePath = "/home/ededub/FEFelson/{}/logos/{}.png"
 class TitlePanel(BasePanel):
 
     def __init__(self, parent, hA="home", *args, **kwargs):
-        super().__init__(parent, size=(700,-1), *args, **kwargs)
+        super().__init__(parent, size=(750,-1), *args, **kwargs)
 
 
         self.sos = {}
@@ -18,7 +18,7 @@ class TitlePanel(BasePanel):
 
         self.overallPanel = BasePanel(self, size=(180,160), style=wx.BORDER_SIMPLE)
         self.matchupPanel = ThumbPanel(self)
-        self.matchupPanel.SetSize((180,160))
+        self.matchupPanel.SetSize((160,160))
 
         overallLabel = self.createStaticText(self.overallPanel, label="Overall", fontSize=12, bold=True)
         sosLabel = self.createStaticText(self.overallPanel, label="SOS", fontSize=12, bold=True)
@@ -109,10 +109,10 @@ class TitlePanel(BasePanel):
             mainSizer.Add(self.overallPanel, 0, wx.EXPAND)
             mainSizer.Add(middleSizer, 1, wx.LEFT | wx.RIGHT, 5)
             mainSizer.Add(outSideSizer, 0, wx.EXPAND)
-            mainSizer.Add(self.matchupPanel, 0, wx.EXPAND)
+            mainSizer.Add(self.matchupPanel, 0, wx.ALL, 10)
 
         else:
-            mainSizer.Add(self.matchupPanel, 0, wx.EXPAND)
+            mainSizer.Add(self.matchupPanel, 0, wx.ALL, 10)
             mainSizer.Add(outSideSizer, 0, wx.EXPAND)
             mainSizer.Add(middleSizer, 1, wx.LEFT | wx.RIGHT, 5)
             mainSizer.Add(self.overallPanel, 0, wx.EXPAND)
@@ -120,7 +120,18 @@ class TitlePanel(BasePanel):
         self.SetSizer(mainSizer)
 
 
-    def setPanel(self, team):
+    def setPanel(self, *, game=None, team=None, hA=None):
+        if not game and not team:
+            raise AssertionError("Panel must be given a game or a team")
+        if game and not hA:
+            raise AssertionError("A game object must have hA flag set with 'home' or 'away'")
+        if hA:
+            self.hA = hA
+
+        if game:
+            team = game.getTeam(hA)
+            self.matchupPanel.setPanel(game)
+            self.matchupPanel.gameDate.SetLabel("Today's Game")
 
         try:
             primaryColor, secondColor = team.getColors()
@@ -252,6 +263,8 @@ class TitlePanel(BasePanel):
                 self.money[key].SetBackgroundColour("grey")
                 self.money[key].SetForegroundColour("white")
             self.money[key].SetName("{} {}".format(key, team.getInfo("teamId")))
+
+        self.Layout()
 
 
     def bind(self, bindCmd):
