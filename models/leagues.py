@@ -10,13 +10,13 @@ from threading import Event
 from .games import Game
 from .overview import Overview
 from .players import Player
-from ..sql import gameStatsCmd
+from ..sql import gameStatsCmd, mLHistoryCmd
 from .teams import NBATeam, NCAABTeam
 from .threading_db import ThreadedDB, Request
 
 from FelsonSports.DB import NBADB, NCAABDB
 
-today = datetime.date.today() - datetime.timedelta(1)
+today = datetime.date.today()
 
 def calculate_sos(weight, expected_results, actual_results):
     total_weighted_difference = 0
@@ -143,17 +143,18 @@ class League:
     def getOddsView(self, gameId):
         """This function is put into a thread and sent to dB.run
         """
-        game = self.league.games[gameId]
+        game = self.games[gameId]
         awayML, homeML = [game.odds.getItem("money", "{}ML".format(hA)) for hA in ("away", "home")]
 
         req = Request()
-        req.args = (awayML, homeML)
+        req.args = (homeML, awayML)
         req.callback = None
-        req.cmd = mlHistoryCmd
-        req.fetch = "fetchOne"
-        req.labels =  ("win%", "winROI", "cover%", "coverROI", "oppMed", "spreadMed",
-                    "resultMed")
+        req.cmd = mLHistoryCmd
+        req.fetch = "fetchAll"
+        req.labels =  ("homeML", "homeWin", "homeCover", "awayML", "awayWin", "awayCover",
+                        "spread", "result", )
 
+        return req
 
 
     def getOverview(self):
