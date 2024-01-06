@@ -13,6 +13,49 @@ class Ctrl:
         self.focusedGame = None
 
 
+    def onClick(self, evt):
+        gameId = evt.GetEventObject().GetName()
+        game = self.league.games[gameId]
+
+
+        awayFrame = wx.Frame(None)
+        awaySizer = wx.BoxSizer()
+        awayPanel = TitlePanel(awayFrame)
+        awayPanel.bind(self.titleClick)
+        awayPanel.setPanel(game=game, hA="away")
+        awaySizer.Add(awayPanel)
+        awayFrame.SetSizer(awaySizer)
+        awayFrame.Fit()
+        awayFrame.Show()
+
+        # put bindings in better place
+        for widge in [awayPanel.matchupPanel.values[hA] for hA in ("away", "home")]:
+            widge.Bind(wx.EVT_LEFT_DCLICK, self.onMoney)
+
+        awayPanel.matchupPanel.spread.Bind(wx.EVT_LEFT_DCLICK, self.onSpread)
+        awayPanel.matchupPanel.ou.Bind(wx.EVT_LEFT_DCLICK, self.onOU)
+
+        homeFrame = wx.Frame(None)
+        homeSizer = wx.BoxSizer()
+        homePanel = TitlePanel(homeFrame)
+        homePanel.bind(self.titleClick)
+        homeLog = GameLogPanel(homeFrame)
+        homePanel.setPanel(game=game, hA="home")
+        homeLog.setPanel(game.getTeam("home").getGameLog(), game.getTeam("home").getActiveIds(), )
+        homeSizer.Add(homePanel)
+        homeSizer.Add(homeLog)
+        homeFrame.SetSizer(homeSizer)
+        homeFrame.Fit()
+        homeFrame.Show()
+
+        # put bindings in better place
+        for widge in [homePanel.matchupPanel.values[hA] for hA in ("away", "home")]:
+            widge.Bind(wx.EVT_LEFT_DCLICK, self.onMoney)
+
+        homePanel.matchupPanel.spread.Bind(wx.EVT_LEFT_DCLICK, self.onSpread)
+        homePanel.matchupPanel.ou.Bind(wx.EVT_LEFT_DCLICK, self.onOU)
+
+
     def getGameStats(self, event):
         gameId, oppId = event.GetEventObject().GetName().split()
         req = self.league.getGameStats(gameId, oppId)

@@ -114,7 +114,7 @@ class GamePanel(wx.Panel):
 class GameLogPanel(wx.Panel):
 
     def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
+        super().__init__(parent, size=(400,400), *args, **kwargs)
 
         self.scrollPanel = wx.ScrolledWindow(self)
         self.scrollPanel.SetScrollbars(20, 20, 50, 50)

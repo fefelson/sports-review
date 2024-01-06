@@ -36,7 +36,6 @@ class Team:
         self.gamePool = None
         self.league = league
         self.odds = None
-        self.pace = None
         self.players = None
         self.records = None
         self.sos = None
@@ -85,6 +84,56 @@ class Team:
 
     def getOdds(self, key):
         return self.odds[key]
+
+
+    def getPossessions(self):
+
+        pace = {"boxes":[],}
+        possValues = self._possValues
+        tempBoxes = {0:[], 1:[], 2:[], 3:[], 4:[]}
+        games = deepcopy(self.activeGames)
+        values = [game["poss"] for game in games]
+        pace["mean"] = mean(values)
+        pace["median"] = median(values)
+        pace["mode"] = mode(values)
+        pace["std"] = stdev(values)
+
+        for game in games:
+            entered = False
+            poss = game["poss"]
+            for i, val in enumerate(possValues):
+                if poss <= val:
+                    tempBoxes[i].append(game)
+                    entered = True
+                    break
+            if not entered:
+                tempBoxes[len(possValues)].append(game)
+
+        length = len(tempBoxes.keys())
+        for i in range(length):
+            paceBox = {}
+            paceBox["gp"] = len(tempBoxes[i])
+            if i == 0:
+                paceBox["title"] = "under {}".format(possValues[i])
+            elif i == length - 1:
+                paceBox["title"] = "over {}".format(possValues[-1])
+            else:
+                paceBox["title"] = "{} - {}".format(possValues[i-1], possValues[i])
+
+            if len([x for x in tempBoxes[i] if x["spread"] != None]):
+                paceBox["win%"] = sum([game["isWinner"] for game in tempBoxes[i] if game["isWinner"] ==1]) / len(tempBoxes[i]) *100
+
+                paceBox["spread%"] = sum([game["isCover"] for game in tempBoxes[i] if game["isCover"] ==1]) / len([x for x in tempBoxes[i] if x["spread"] != None]) *100
+
+                paceBox["over%"] = sum([game["isOver"] for game in tempBoxes[i] if game["isOver"] ==1 and game["o/u"] != None]) / len([x for x in tempBoxes[i] if x["o/u"] != None]) *100
+
+                paceBox["spread"] = sum([game["spread"] for game in tempBoxes[i] if game["spread"] != None]) / len([x for x in tempBoxes[i] if x["spread"] != None])
+
+                paceBox["o/u"] = sum([game["o/u"] for game in tempBoxes[i] if game["o/u"] != None]) / len([x for x in tempBoxes[i] if x["o/u"] != None])
+
+                paceBox["opp"] = [(game["gameId"], game["oppId"]) for game in tempBoxes[i]]
+            pace["boxes"].append(deepcopy(paceBox))
+        return deepcopy(pace)
 
 
     def getRecords(self, key):
@@ -173,56 +222,6 @@ class Team:
             game["gameDate"] = datetime.strptime(game["gameDate"], "%a, %d %b %Y %H:%M:%S %z").astimezone(pytz.timezone('US/Eastern'))
         self.gamePool = gamePool
         self.setActiveGames_to_GamePool()
-
-
-    def setPace(self):
-
-        pace = {"boxes":[],}
-        possValues = self._possValues
-        tempBoxes = {0:[], 1:[], 2:[], 3:[], 4:[]}
-        games = deepcopy(self.activeGames)
-        values = [game["poss"] for game in games]
-        pace["mean"] = mean(values)
-        pace["median"] = median(values)
-        pace["mode"] = mode(values)
-        pace["std"] = stdev(values)
-
-        for game in games:
-            entered = False
-            poss = game["poss"]
-            for i, val in enumerate(possValues):
-                if poss <= val:
-                    tempBoxes[i].append(game)
-                    entered = True
-                    break
-            if not entered:
-                tempBoxes[len(possValues)].append(game)
-
-        length = len(tempBoxes.keys())
-        for i in range(length):
-            paceBox = {}
-            paceBox["gp"] = len(tempBoxes[i])
-            if i == 0:
-                paceBox["title"] = "under {}".format(possValues[i])
-            elif i == length - 1:
-                paceBox["title"] = "over {}".format(possValues[-1])
-            else:
-                paceBox["title"] = "{} - {}".format(possValues[i-1], possValues[i])
-
-            if len([x for x in tempBoxes[i] if x["spread"] != None]):
-                paceBox["win%"] = sum([game["isWinner"] for game in tempBoxes[i] if game["isWinner"] ==1]) / len(tempBoxes[i]) *100
-
-                paceBox["spread%"] = sum([game["isCover"] for game in tempBoxes[i] if game["isCover"] ==1]) / len([x for x in tempBoxes[i] if x["spread"] != None]) *100
-
-                paceBox["over%"] = sum([game["isOver"] for game in tempBoxes[i] if game["isOver"] ==1 and game["o/u"] != None]) / len([x for x in tempBoxes[i] if x["o/u"] != None]) *100
-
-                paceBox["spread"] = sum([game["spread"] for game in tempBoxes[i] if game["spread"] != None]) / len([x for x in tempBoxes[i] if x["spread"] != None])
-
-                paceBox["o/u"] = sum([game["o/u"] for game in tempBoxes[i] if game["o/u"] != None]) / len([x for x in tempBoxes[i] if x["o/u"] != None])
-
-                paceBox["opp"] = [(game["gameId"], game["oppId"]) for game in tempBoxes[i]]
-            pace["boxes"].append(deepcopy(paceBox))
-        self.pace = deepcopy(pace)
 
 
     def setPlayers(self, players):

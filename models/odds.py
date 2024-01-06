@@ -60,7 +60,10 @@ class GameOdds:
         try:
             book = self.odds[bookName]
         except KeyError:
-            book = [x for x in self.odds.values()[-1]]
+            try:
+                book = [x for x in self.odds.values()[-1]]
+            except:
+                book = None
 
         try:
             value = book[group][-1][item]

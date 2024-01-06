@@ -61,7 +61,6 @@ class League:
         self.dB.run(self.setTeams())
         for team in self.teams.values():
             self.dB.run(team.newGamePool())
-            team.setPace()
             self.dB.run(team.newTeamRecords())
             self.dB.run(team.newStatAvgs())
             self.dB.run(team.newTeamOdds())
@@ -105,20 +104,26 @@ class League:
         # Iterate through files in gameDayPath that start with 'M'
         for fileName in [gameDayPath +fileName for fileName in os.listdir(gameDayPath) if fileName[0] == "M"]:
             # Create a new Game object
-            with open(fileName) as fileIn:
-                info = json.load(fileIn)
-                self.games[info["gameId"]] = self._newGame(self, info)
-                for hA in ("away", "home"):
-                    teamId = info["teams"][hA]["teamId"]
-                    players = info["players"][hA]
 
-                    try:
-                        self.teams[teamId].setPlayers(players)
-                    except KeyError:
-                        self.teams[teamId] = self._newTeam(self, info["teams"][hA])
-                        self.teams[teamId].setPlayers(players)
-                    for playerId in players:
-                        self.players[playerId] = self._newPlayer(playerId)
+
+
+            with open(fileName) as fileIn:
+
+                info = json.load(fileIn)
+                if datetime.datetime.strptime(info["gameTime"], "%a, %d %b %Y %H:%M:%S %z").timestamp() > datetime.datetime.now().timestamp():
+
+                    self.games[info["gameId"]] = self._newGame(self, info)
+                    for hA in ("away", "home"):
+                        teamId = info["teams"][hA]["teamId"]
+                        players = info["players"][hA]
+
+                        try:
+                            self.teams[teamId].setPlayers(players)
+                        except KeyError:
+                            self.teams[teamId] = self._newTeam(self, info["teams"][hA])
+                            self.teams[teamId].setPlayers(players)
+                        for playerId in players:
+                            self.players[playerId] = self._newPlayer(playerId)
 
 
     def getGameStats(self, gameId, oppId):
@@ -151,8 +156,8 @@ class League:
         req.callback = None
         req.cmd = mLHistoryCmd
         req.fetch = "fetchAll"
-        req.labels =  ("homeML", "homeWin", "homeCover", "awayML", "awayWin", "awayCover",
-                        "spread", "result", )
+        req.labels =  ("homeML", "homeWin", "homeCover", "homeSpread", "homeResult",
+                        "awayML", "awayWin", "awayCover", "awaySpread", "awayResult", )
 
         return req
 
@@ -171,6 +176,10 @@ class League:
                         "spread", "result", "cover%", "atsROI", "o/u", "total",
                         "over%", "overROI", "underROI", "teamId")
         return req
+
+
+    def getTeam(self, teamId):
+        return self.teams[teamId]
 
 
     def setTeamInfo(self, info):

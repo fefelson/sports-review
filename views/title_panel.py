@@ -9,7 +9,7 @@ imagePath = "/home/ededub/FEFelson/{}/logos/{}.png"
 
 class TitlePanel(BasePanel):
 
-    def __init__(self, parent, hA="home", *args, **kwargs):
+    def __init__(self, parent, ctrl, hA="home", *args, **kwargs):
         super().__init__(parent, size=(750,-1), *args, **kwargs)
 
 
@@ -26,9 +26,15 @@ class TitlePanel(BasePanel):
 
         self.sos["score"] = self.createStaticText(self.overallPanel, label="00", fontSize=28, bold=True)
         self.sos["SOS"] = self.createStaticText(self.overallPanel, label="00", fontSize=20, bold=True)
+
         self.sos["offEff"] = self.createStaticText(self.overallPanel, label="000", fontSize=12, bold=True)
+        self.sos["offEff"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onOffDef)
+
         self.sos["defEff"] = self.createStaticText(self.overallPanel, label="000", fontSize=12, bold=True)
+        self.sos["defEff"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onOffDef)
+
         self.sos["poss"] = self.createStaticText(self.overallPanel, label="000", fontSize=12, bold=True)
+        self.sos["poss"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onPoss)
 
         self.logo = wx.StaticBitmap(self)
 
@@ -41,6 +47,7 @@ class TitlePanel(BasePanel):
 
         gamesLabel = self.createStaticText(self, label="gp", fontSize=18, bold=True)
         self.games = self.createStaticText(self, label="0", fontSize=18, bold=True)
+        self.games.Bind(wx.EVT_LEFT_DCLICK, ctrl.onGP)
 
         winPctLabel = self.createStaticText(self, label="WIN Pct:", fontSize=12, bold=False)
         winROILabel = self.createStaticText(self, label="roi:", fontSize=12, bold=False)
@@ -265,14 +272,3 @@ class TitlePanel(BasePanel):
             self.money[key].SetName("{} {}".format(key, team.getInfo("teamId")))
 
         self.Layout()
-
-
-    def bind(self, bindCmd):
-        for item in (self.firstName, self.lastName, self.logo, self.games):
-            item.Bind(wx.EVT_LEFT_DCLICK, bindCmd)
-
-        for key in self.money.keys():
-            self.money[key].Bind(wx.EVT_LEFT_DCLICK, bindCmd)
-
-        for key in self.sos.keys():
-            self.sos[key].Bind(wx.EVT_LEFT_DCLICK, bindCmd)

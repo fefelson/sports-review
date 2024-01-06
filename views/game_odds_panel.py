@@ -17,7 +17,7 @@ class VsPanel(BasePanel):
 
         for hA in ("away", "home"):
             self.title[hA] = wx.StaticText(self, label="{} {}".format(hA.upper(), "N"))
-            for key in ("win%", "winROI", "cover%", "coverROI", "oppMed", "spreadMed",
+            for key in ("win%", "winROI", "cover%", "coverROI", "spreadMed",
                         "resultMed"):
                 self.values[hA][key] = wx.StaticText(self, label=key)
 
@@ -44,10 +44,6 @@ class VsPanel(BasePanel):
         mainSizer.Add(self.values["away"]["coverROI"])
         mainSizer.Add(self.createStaticText(self, "Cover ROI%", 12, True))
         mainSizer.Add(self.values["home"]["coverROI"])
-
-        mainSizer.Add(self.values["away"]["oppMed"])
-        mainSizer.Add(self.createStaticText(self, "Opp Med", 12, True))
-        mainSizer.Add(self.values["home"]["oppMed"])
 
         mainSizer.Add(self.values["away"]["spreadMed"])
         mainSizer.Add(self.createStaticText(self, "Spread Med", 12, True))
@@ -85,9 +81,12 @@ class GameOddsFrame(wx.Frame):
         info = evt.GetValue()
         print(info)
 
+        self.vsPanel.gameNum.SetLabel(str(info["gp"]))
         for hA in ("away", "home"):
             self.vsPanel.title[hA].SetLabel("{} {}".format(hA, info[hA]["ML"]))
             self.vsPanel.values[hA]["win%"].SetLabel("{:.0f}%".format(info[hA]["win%"]))
             self.vsPanel.values[hA]["cover%"].SetLabel("{:.0f}%".format(info[hA]["cover%"]))
             self.vsPanel.values[hA]["winROI"].SetLabel("{:.0f}%".format(info[hA]["winROI"]))
             self.vsPanel.values[hA]["coverROI"].SetLabel("{:.0f}%".format(info[hA]["coverROI"]))
+            self.vsPanel.values[hA]["spreadMed"].SetLabel("{:.1f}".format(info[hA]["spread"]))
+            self.vsPanel.values[hA]["resultMed"].SetLabel("{:.1f}".format(info[hA]["result"]))
