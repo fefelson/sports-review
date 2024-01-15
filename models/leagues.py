@@ -8,9 +8,9 @@ from scipy.optimize import minimize
 from threading import Event
 
 from .games import Game
-from .overview import Overview
-from .players import Player
-from ..sql import gameStatsCmd, mLHistoryCmd
+from .overview import NBAOverview, NCAABOverview
+from .players import NBAPlayer, NCAABPlayer
+from ..sql import gameStatsCmd, mLHistoryCmd,atsHistoryCmd,  totalHistoryCmd
 from .teams import NBATeam, NCAABTeam
 from .threading_db import ThreadedDB, Request
 
@@ -44,6 +44,7 @@ class League:
     _newGame = None
     _newPlayer = None
     _newTeam = None
+    _overview = None
     _reportPath = None
     _setTeamsCmd = "SELECT team_id, abrv, first_name, last_name, conference, division, primary_color, secondary_color FROM teams"
     _setTeamLabels = ("teamId", "abrv", "firstName", "lastName", "conference", "division", "primaryColor", "secondColor")
@@ -54,19 +55,21 @@ class League:
         self.season = season
         self.dB = ThreadedDB(self._dB)
         self.games = {}
-        self.overview = Overview(self)
+        self.overview = self._overview(self)
         self.players = {}
         self.teams = {}
 
         self.dB.run(self.setTeams())
         for team in self.teams.values():
             self.dB.run(team.newGamePool())
+            self.dB.run(team.newPlayers())
             self.dB.run(team.newTeamRecords())
             self.dB.run(team.newStatAvgs())
             self.dB.run(team.newTeamOdds())
 
         self.setTeamSOS()
         self.setGames()
+        self.leagueSpecific()
 
 
     def _SOSWeights(self, team):
@@ -99,31 +102,8 @@ class League:
         return color
 
 
-    def setGames(self):
-        gameDayPath = self.getGameDayPath()
-        # Iterate through files in gameDayPath that start with 'M'
-        for fileName in [gameDayPath +fileName for fileName in os.listdir(gameDayPath) if fileName[0] == "M"]:
-            # Create a new Game object
-
-
-
-            with open(fileName) as fileIn:
-
-                info = json.load(fileIn)
-                if datetime.datetime.strptime(info["gameTime"], "%a, %d %b %Y %H:%M:%S %z").timestamp() > datetime.datetime.now().timestamp():
-
-                    self.games[info["gameId"]] = self._newGame(self, info)
-                    for hA in ("away", "home"):
-                        teamId = info["teams"][hA]["teamId"]
-                        players = info["players"][hA]
-
-                        try:
-                            self.teams[teamId].setPlayers(players)
-                        except KeyError:
-                            self.teams[teamId] = self._newTeam(self, info["teams"][hA])
-                            self.teams[teamId].setPlayers(players)
-                        for playerId in players:
-                            self.players[playerId] = self._newPlayer(playerId)
+    def leagueSpecific(self):
+        raise
 
 
     def getGameStats(self, gameId, oppId):
@@ -145,19 +125,24 @@ class League:
         return req
 
 
-    def getOddsView(self, gameId):
+    def getTotalView(self, gameId):
         """This function is put into a thread and sent to dB.run
         """
         game = self.games[gameId]
-        awayML, homeML = [game.odds.getItem("money", "{}ML".format(hA)) for hA in ("away", "home")]
+        book = game.odds.getBook()
+        oU = None
+        for i in range(len(book["total"])):
+            x = book["total"][(i+1)*-1].get("total", None)
+            if x:
+                oU = x
+                break
 
         req = Request()
-        req.args = (homeML, awayML)
-        req.callback = None
-        req.cmd = mLHistoryCmd
+        req.args = (oU,)
+        req.cmd = totalHistoryCmd
+        req.odds = game.odds
         req.fetch = "fetchAll"
-        req.labels =  ("homeML", "homeWin", "homeCover", "homeSpread", "homeResult",
-                        "awayML", "awayWin", "awayCover", "awaySpread", "awayResult", )
+        req.labels =  ("result", "outcome")
 
         return req
 
@@ -180,6 +165,30 @@ class League:
 
     def getTeam(self, teamId):
         return self.teams[teamId]
+
+
+    def setGames(self):
+        gameDayPath = self.getGameDayPath()
+        # Iterate through files in gameDayPath that start with 'M'
+        for fileName in [gameDayPath +fileName for fileName in os.listdir(gameDayPath) if fileName[0] == "M"]:
+            # Create a new Game object
+
+            with open(fileName) as fileIn:
+
+                info = json.load(fileIn)
+                if datetime.datetime.strptime(info["gameTime"], "%a, %d %b %Y %H:%M:%S %z").timestamp():# > datetime.datetime.now().timestamp():
+
+                    self.games[info["gameId"]] = self._newGame(self, info)
+                    # for hA in ("away", "home"):
+                    #     teamId = info["teams"][hA]["teamId"]
+                    #     players = info["players"][hA]
+                    #
+                    #     try:
+                    #         self.teams[teamId].setPlayers(players)
+                    #     except KeyError:
+                    #         self.teams[teamId] = self._newTeam(self, info["teams"][hA])
+                    #         self.teams[teamId].setPlayers(players)
+
 
 
     def setTeamInfo(self, info):
@@ -234,7 +243,7 @@ class League:
             homeScore = ((homeWeight+.1)/(maxValues["homeWeight"]+.1))*50
             awayScore = ((awayWeight+.1)/(maxValues["awayWeight"]+.1))*50
 
-            team.setSOS(oppPtsScore + victoryScore + homeScore + awayScore)
+            team.setSOS(oppPtsScore, victoryScore, homeScore, awayScore)
 
 
 class NBA(League):
@@ -243,9 +252,9 @@ class NBA(League):
     _gameDayPath = "/home/ededub/FEFelson/nba/{}/{}/{}/"
     _leagueId = "nba"
     _newGame = Game
-    _newPlayer = Player
+    _newPlayer = NBAPlayer
     _newTeam = NBATeam
-    _reportPath = "/home/ededub/FEFelson/nba/.report.json"
+    _overview = NBAOverview
 
 
     def __init__(self, season):
@@ -256,15 +265,21 @@ class NBA(League):
         return self._gameDayPath.format(self.season, *str(today).split("-")[1:])
 
 
+    def leagueSpecific(self):
+        for team in self.teams.values():
+            self.dB.run(team.newB2B())
+
+
+
 class NCAAB(League):
 
     _dB = NCAABDB
     _gameDayPath = "/home/ededub/FEFelson/ncaab/{}/{}/{}/"
     _leagueId = "ncaab"
     _newGame = Game
-    _newPlayer = Player
+    _newPlayer = NCAABPlayer
     _newTeam = NCAABTeam
-    _reportPath = "/home/ededub/FEFelson/ncaab/.report.json"
+    _overview = NCAABOverview
     _setTeamsCmd = "SELECT team_id, abrv, first_name, last_name, conference, primary_color, secondary_color FROM teams"
     _setTeamLabels = ("teamId", "abrv", "firstName", "lastName", "conference", "primaryColor", "secondColor")
 
@@ -275,3 +290,8 @@ class NCAAB(League):
 
     def getGameDayPath(self):
         return self._gameDayPath.format(self.season, *str(today).split("-")[1:])
+
+
+    def leagueSpecific(self):
+        for team in self.teams.values():
+            self.dB.run(team.newB2B())

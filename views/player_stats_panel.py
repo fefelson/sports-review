@@ -1,113 +1,192 @@
-class BballPlayerStatsPanel(wx.ScrolledWindow):
+import wx
 
-    _statList = ("gp", "start%", "fg%", "ft%", "tp%", "pts", "oreb",  "reb",
-                    "ast", "stl", "blk", "trn", "fls", "mins", "plmn")
+from .base_panel import BasePanel
+
+
+
+class PlayerPanel(BasePanel):
+
 
     def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, size=((150,500)), *args, **kwargs)
-        self.SetScrollbars(20, 20, 50, 50)
+        super().__init__(parent, *args, **kwargs)
 
-        mainSizer = wx.BoxSizer()
-        self.values = []
+        self.values = {}
+        statSizer = {}
 
-        teamSizer = wx.BoxSizer(wx.VERTICAL)
+        for stat in ("gp", "start%", "mins", "fgm-fga", "fg%", "ftm-fta", "ft%", "3pm-3pa", "3p%",
+                     "pts", "oreb",  "reb", "ast", "stl", "blk", "fls", "trn", "plmn"):
 
-        for i in range(10):
-            items = {}
-            self.values.append({})
+            if stat == "pts":
+                fontSize = 15
+            elif stat in ("start%", "mins"):
+                fontSize = 8
+            else:
+                fontSize = 10
 
-            for stat in self._statList:
-                if stat in ("tpa","tp%"):
-                    label = self.makeLabel("3"+stat[1:])
-                else:
-                    label = self.makeLabel(stat)
-                if stat != "pts":
-                    font = wx.Font(wx.FontInfo(10).Bold())
-                elif stat in ("start%", "mins", "plmn"):
-                    font = wx.Font(wx.FontInfo(8).Bold())
-
-                else:
-                    font = wx.Font(wx.FontInfo(15).Bold())
-
-                text = wx.StaticText(self)
-                text.SetFont(font)
-
-                self.values[i][stat] = text
-                items[stat] = self.xSizer(label, text)
-
-            statSizer = wx.BoxSizer()
-            recSizer = wx.BoxSizer(wx.VERTICAL)
-
-            row1 = wx.BoxSizer()
-            row1.Add(items["fg%"], 0, wx.RIGHT, 35)
-            row1.Add(items["ft%"], 0, wx.RIGHT, 35)
-            row1.Add(items["tp%"])
+            self.values[stat] = self.createStaticText(self, label=stat, fontSize=fontSize, bold=True)
+            if stat in ("gp", "start%", "mins", "pts", "plmn"):
+                statSizer[stat] = self.xSizer(stat, self.values[stat])
+            else:
+                self.values[stat].Hide()
 
 
-            recSizer.Add(row1, 0, wx.BOTTOM, 10)
 
-            row2 = wx.BoxSizer()
-            row2.Add(items["reb"], 0, wx.RIGHT, 10)
-            row2.Add(items["oreb"], 0, wx.RIGHT, 35)
-            row2.Add(items["ast"], 0, wx.RIGHT, 10)
-            row2.Add(items["stl"], 0, wx.RIGHT, 10)
-            row2.Add(items["blk"], 0, wx.RIGHT, 30)
-            row2.Add(items["trn"], 0, wx.RIGHT, 10)
-            row2.Add(items["fls"], 0, wx.RIGHT, 10)
+        self.values["fullName"] = self.createStaticText(self, label="name", fontSize=13, bold=True)
+        self.values["pos"] = self.createStaticText(self, label="pos", fontSize=9, bold=True)
+        self.values["inj"] = wx.Panel(self, size=(10,10))
+        self.values["inj"].Hide()
+        self.values["inj"].SetBackgroundColour(wx.Colour("RED"))
 
-            recSizer.Add(row2, 0, wx.BOTTOM, 10)
+        nameSizer = wx.BoxSizer()
+        nameSizer.Add(self.values["fullName"])
+        nameSizer.Add(self.values["pos"])
+        nameSizer.Add(self.values["inj"])
+        nameSizer.Add(statSizer["start%"], 0, wx.LEFT, 20)
 
-            statSizer.Add(items["pts"], 0, wx.CENTER | wx.RIGHT, 35)
-            statSizer.Add(recSizer, 0)
-
-
-            sizer = wx.BoxSizer(wx.VERTICAL)
-
-            name = wx.StaticText(self)
-            name.SetFont(wx.Font(wx.FontInfo(13).Bold()))
-
-            pos = wx.StaticText(self)
-            pos.SetFont(wx.Font(wx.FontInfo(9)))
-
-            self.values[i]["name"] = name
-            self.values[i]["pos"] = pos
-            self.values[i]["inj"] = wx.Panel(self, size=(10,10))
+        topSizer = wx.BoxSizer()
+        topSizer.Add(statSizer["pts"], 0, wx.RIGHT, 10)
+        topSizer.Add(statSizer["plmn"])
+        topSizer.Add(statSizer["gp"], 0, wx.LEFT, 60)
+        topSizer.Add(statSizer["mins"], 0, wx.LEFT, 20)
 
 
-            nameSizer = wx.BoxSizer()
-            nameSizer.Add(name, 1, wx.EXPAND | wx.RIGHT, 15)
-            nameSizer.Add(pos, 0, wx.EXPAND | wx.RIGHT, 5)
-            nameSizer.Add(self.values[i]["inj"], 0, wx.CENTER | wx.RIGHT, 15)
-            nameSizer.Add(items["gp"], 0, wx.RIGHT, 10)
-            nameSizer.Add(items["start%"], 0, wx.RIGHT, 10)
-            nameSizer.Add(items["mins"], 0, wx.RIGHT, 10)
-            nameSizer.Add(items["plmn"], 0, wx.RIGHT, 10)
+        shotSizer = wx.BoxSizer()
+        fgSizer = wx.BoxSizer()
+        fgSizer.Add(self.values["fgm-fga"])
+        fgSizer.Add(self.values["fg%"], 0, wx.LEFT, 10)
+        shotSizer.Add(fgSizer, 0, wx.RIGHT,  10)
 
-            sizer.Add(nameSizer, 0, wx.BOTTOM, 25)
-            sizer.Add(statSizer)
-            teamSizer.Add(sizer, 1, wx.BOTTOM, 10)
-            teamSizer.Add(wx.StaticLine(self), 0, wx.EXPAND)
+        ftSizer = wx.BoxSizer()
+        ftSizer.Add(self.values["ftm-fta"])
+        ftSizer.Add(self.values["ft%"], 0, wx.LEFT, 10)
+        shotSizer.Add(ftSizer, 0, wx.RIGHT,  10)
 
-        self.SetSizer(teamSizer)
+        tpSizer = wx.BoxSizer()
+        tpSizer.Add(self.values["3pm-3pa"])
+        tpSizer.Add(self.values["3p%"], 0, wx.LEFT, 10)
+        shotSizer.Add(tpSizer, 0, wx.RIGHT,  10)
+
+        gridSizer = wx.BoxSizer()
+        for stat in ("oreb", "reb", "ast", "stl", "blk", "trn", "fls"):
+            gridSizer.Add(self.values[stat], 0, wx.LEFT, 10)
+
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
+        mainSizer.Add(nameSizer)
+        mainSizer.Add(shotSizer)
+        mainSizer.Add(topSizer, 0, wx.TOP | wx.BOTTOM, 10)
+        mainSizer.Add(gridSizer)
 
 
-    def setPlayer(self, i, player):
+        self.SetSizer(mainSizer)
 
-        for key in ("name", "pos", "gp","start%","fg%", "ft%", "tp%", "pts", "oreb",  "reb",
-                    "ast", "stl", "blk", "trn", "fls", "mins", "plmn"):
+
+    def setPanel(self, player):
+        self.values["fullName"].SetLabel(player.getItem("fullName"))
+        self.values["pos"].SetLabel(player.getItem("pos"))
+
+        for stat in ("gp", "start%", "mins", "pts", "plmn"):
+
+            stringForm = "{:.0f}"
+            if "%" in stat:
+                stringForm = "{:.1f}%"
+            if stat == "plmn":
+                stringForm = "{:.1f}"
+
             try:
-                if key in ("fg%", "ft%", "tp%", "start%"):
-                    text = "{:.0f}%".format(player[key]*100)
-                elif key in ("name", "pos"):
-                    if player[key]:
-                        text = player[key]
-                    else:
-                        text = "n/a"
-                elif key in ("pts", "trn", "fls", "plmn",):
-                    text = "{:.1f}".format(player[key])
-                else:
-                    text = "{:.0f}".format(player[key])
-            except:
-                text = "--"
+                self.values[stat].SetLabel(stringForm.format(player.getItem(stat)))
 
-            self.values[i][key].SetLabel(text)
+                reverse = True if stat in ("trn", "fls") else False
+                backColor, textColor = player.getValueColor(stat, player.getItem(stat), reverse)
+                self.values[stat].SetBackgroundColour(backColor)
+                self.values[stat].SetForegroundColour(textColor)
+            except:
+                self.values[stat].SetLabel("--")
+
+        if (player.getValueColor("fga",player.getItem("fga"))[0] == "gold" or
+            player.getValueColor("fgm", player.getItem("fgm")) == "gold"):
+            self.values["fgm-fga"].Show()
+            self.values["fgm-fga"].SetBackgroundColour(wx.Colour("gold"))
+
+        if player.getValueColor("fg%",  player.getItem("fg%"))[0] == "gold":
+            self.values["fg%"].Show()
+            self.values["fg%"].SetBackgroundColour(wx.Colour("gold"))
+        elif (player.getValueColor("fga",  player.getItem("fga"))[0] not in ("red", "pink") and
+                player.getValueColor("fg%", player.getItem("fg%"))[0] == "red"):
+            self.values["fg%"].Show()
+            self.values["fg%"].SetBackgroundColour(wx.Colour("red"))
+            self.values["fg%"].SetForegroundColour(wx.Colour("white"))
+
+        if (player.getValueColor("fta",  player.getItem("fta"))[0] == "gold" or
+            player.getValueColor("ftm",  player.getItem("ftm")) == "gold"):
+            self.values["ftm-fta"].Show()
+            self.values["ftm-fta"].SetBackgroundColour(wx.Colour("gold"))
+
+        if player.getValueColor("ft%", player.getItem("ft%"))[0] == "gold":
+            self.values["ft%"].Show()
+            self.values["ft%"].SetBackgroundColour(wx.Colour("gold"))
+        elif (player.getValueColor("fta", player.getItem("fta"))[0] not in ("red", "pink") and
+                player.getValueColor("ft%", player.getItem("ft%"))[0] == "red"):
+            self.values["ft%"].Show()
+            self.values["ft%"].SetBackgroundColour(wx.Colour("red"))
+            self.values["ft%"].SetForegroundColour(wx.Colour("white"))
+
+        if (player.getValueColor("tpa", player.getItem("tpa"))[0] == "gold" or
+            player.getValueColor("tpm", player.getItem("tpm")) == "gold"):
+            self.values["3pm-3pa"].Show()
+            self.values["3pm-3pa"].SetBackgroundColour(wx.Colour("gold"))
+
+        if player.getValueColor("tp%", player.getItem("tp%"))[0] == "gold":
+            self.values["3p%"].Show()
+            self.values["3p%"].SetBackgroundColour(wx.Colour("gold"))
+        elif (player.getValueColor("tpa", player.getItem("tpa"))[0] not in ("red", "pink") and
+                player.getValueColor("tp%", player.getItem("tp%"))[0] == "red"):
+            self.values["3p%"].Show()
+            self.values["3p%"].SetBackgroundColour(wx.Colour("red"))
+            self.values["3p%"].SetForegroundColour(wx.Colour("white"))
+
+
+        for stat in ("oreb", "reb", "ast", "stl", "blk"):
+            if player.getValueColor(stat, player.getItem(stat))[0] in ("gold", "green"):
+                self.values[stat].Show()
+                backColor, textColor = player.getValueColor(stat,  player.getItem(stat))
+                self.values[stat].SetBackgroundColour(wx.Colour(backColor))
+                self.values[stat].SetForegroundColour(wx.Colour(textColor))
+
+        for stat in ("fls", "trn"):
+            if player.getValueColor(stat, player.getItem(stat))[0] in ("red", "pink"):
+                self.values[stat].Show()
+                backColor, textColor = player.getValueColor(stat, player.getItem(stat))
+                self.values[stat].SetBackgroundColour(wx.Colour(backColor))
+                self.values[stat].SetForegroundColour(wx.Colour(textColor))
+
+        self.Layout()
+
+
+
+
+
+
+class PlayerStatsPanel(BasePanel):
+
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+
+        self.srolledWindow = wx.ScrolledWindow(self)
+        self.srolledWindow.SetScrollbars(20, 20, 10, 10)
+        self.scrollSizer = wx.GridSizer(cols=2, hgap=5, vgap=30)
+        self.srolledWindow.SetSizer(self.scrollSizer)
+
+        sizer = wx.BoxSizer()
+        sizer.Add(self.srolledWindow, 1, wx.EXPAND | wx.ALL, 25)
+        self.SetSizer(sizer)
+
+
+    def setPanel(self, team, injuries):
+        inj = [int(x) for x in injuries.keys()]
+        for player in team.getPlayers():
+            newPanel = PlayerPanel(self.srolledWindow)
+            newPanel.setPanel(player)
+            if int(player.getItem("playerId")) in inj:
+                newPanel.values["inj"].Show()
+            self.scrollSizer.Add(newPanel)
+        self.srolledWindow.Layout()

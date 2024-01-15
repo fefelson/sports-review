@@ -11,6 +11,20 @@ class OptionsPanel(wx.Panel):
         self.fav = wx.RadioBox(self, label="favorites", choices=("all", "favorite", "underdog"), name="isFavorite")
         self.ats = wx.RadioBox(self, label="covers", choices=("all", "cover", "loser"), name="isCover")
 
+
+        # self.vs = wx.Button(self, label="VS")
+        self.all = wx.Button(self, label="ALL")
+        self.clear = wx.Button(self, label="CLR")
+        self.set = wx.Button(self, label="SET")
+
+        buttonSizer = wx.BoxSizer(wx.VERTICAL)
+        topSizer = wx.BoxSizer()
+        topSizer.Add(self.all)
+        topSizer.Add(self.clear)
+        buttonSizer.Add(topSizer)
+        buttonSizer.Add(self.set)
+
+        mainSizer = wx.BoxSizer(wx.VERTICAL)
         optionsSizer = wx.BoxSizer()
         leftSizer = wx.BoxSizer(wx.VERTICAL)
         rightSizer = wx.BoxSizer(wx.VERTICAL)
@@ -24,4 +38,7 @@ class OptionsPanel(wx.Panel):
         optionsSizer.Add(leftSizer)
         optionsSizer.Add(rightSizer)
 
-        self.SetSizer(optionsSizer)
+        mainSizer.Add(optionsSizer)
+        mainSizer.Add(buttonSizer)
+
+        self.SetSizer(mainSizer)

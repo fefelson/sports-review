@@ -1,7 +1,10 @@
 import statistics
 
+from collections import Counter
 from threading import Thread
 from wx import NewEventType, PostEvent, PyEventBinder, PyCommandEvent
+
+from ..helpers import countResults, getRequest
 
 
 myEVT_GameOdds = NewEventType()
@@ -29,57 +32,56 @@ class GameOddsEvent(PyCommandEvent):
 
 class GameOddsThread(Thread):
 
-    def __init__(self, parent, dbRun, req):
+    def __init__(self, parent, league, gameId, hA):
         """@param parent: The gui object that should recieve the value
            @param req: the Request object to send to the dB
            @param dbRun: dB.run function to be threaded
         """
         Thread.__init__(self)
-        self.dbRun = dbRun
         self._parent = parent
-        self._req = req
-        self.resultType = None
-
-
-    def setResultType(self, resultType):
-        self.resultType = resultType
+        self._league = league
+        self._gameId = gameId
+        self._hA = hA
 
 
     def run(self):
-        self.dbRun(self._req)
-        answer = self._req.value
+        result = {}
+        game = self._league.games[self._gameId]
+        team = game.getTeam(self._hA)
+        result["hA"] = self._hA
+        result["fullName"] = team.getInfo("lastName")
 
-        result = {"away":{}, "home":{}}
-        # type specific object
-        if self.resultType:
-            self.resultType(answer)
+        awayML = game.odds.getItem("money", "awayML")
+        homeML = game.odds.getItem("money", "homeML")
+        teamML = game.odds.getItem("money", "{}ML".format(self._hA))
+        spread = game.odds.getItem("spread", "{}Spread".format(self._hA))
+        oU = game.odds.getItem("total", "total")
 
-        else:
-            total = len(answer)
-            result["gp"] = total
-            print(total)
-            for hA in ("away", "home"):
-                ML = answer[0]["{}ML".format(hA)]
-                wins = sum([item["{}Win".format(hA)] for item in answer if item["{}Win".format(hA)] == 1])
-                covers = sum([item["{}Cover".format(hA)] for item in answer if item["{}Cover".format(hA)] == 1])
-                result[hA]["ML"] =  ML if ML  < 0 else "+"+str(ML)
-                result[hA]["cover%"] = covers /len(answer)*100
-                result[hA]["win%"] = wins /len(answer)*100
+        result["awayML"] = awayML
+        result["homeML"] = homeML
+        result["teamML"] = teamML
+        result["spread"] = spread
+        result["oU"] = oU
 
-                result[hA]["spread"] = statistics.median([x["{}Spread".format(hA)] for x in answer])
-                result[hA]["result"] = statistics.median([x["{}Result".format(hA)] for x in answer])
 
-                if ML > 0:
-                    result[hA]["winROI"] = (((ML+100)*wins)-total*100)/total
-                elif ML <0:
-                    result[hA]["winROI"] = (((  (10000/ML*-1)  +100)*wins)-total*100)/total
-                print(result[hA]["winROI"])
+        postLines = []
+        book = game.odds.getBook()
 
-                result[hA]["coverROI"] = ((covers*191.91)-total*100)/total
+        for g in book["money"]:
+            if g["{}ML".format(self._hA)]:
+                temp = float( g["{}ML".format(self._hA)])
+                postLines.append(temp)
+        result["postLines"] = postLines
 
 
 
+        req = getRequest(homeML=homeML, awayML=awayML)
+        self._league.dB.run(req)
+        result["homeMoney/awayMoney"] = countResults(req.value)
 
+        req = getRequest(teamML=teamML, hA=self._hA)
+        self._league.dB.run(req)
+        result["teamMoney"] = countResults(req.value)
 
         evt = GameOddsEvent(myEVT_GameOdds, -1, result)
         PostEvent(self._parent, evt)

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import pytz
 from statistics import mean, median, mode, stdev
 from threading import Event
@@ -7,7 +7,7 @@ from threading import Event
 from .stats import BasketballTeamStats
 from .threading_db import Request
 
-from ..sql import gamePoolCmd, teamOddsCmd, teamRecordsCmd, teamStatsCmd
+from ..sql import b2BCmd, gamePoolCmd, teamOddsCmd, teamRecordsCmd, teamStatsCmd
 
 
 
@@ -35,9 +35,10 @@ class Team:
         self.activeGames = None
         self.gamePool = None
         self.league = league
-        self.odds = None
-        self.players = None
-        self.records = None
+        self.odds = {}
+        self.players = {}
+        self.gamePlayers = None
+        self.records = {}
         self.sos = None
         self.stats = None
 
@@ -83,7 +84,7 @@ class Team:
 
 
     def getOdds(self, key):
-        return self.odds[key]
+        return self.odds.get(key,None)
 
 
     def getPossessions(self):
@@ -111,7 +112,7 @@ class Team:
 
         length = len(tempBoxes.keys())
         for i in range(length):
-            paceBox = {}
+            paceBox = {"win%":0, "spread%":0, "over%":0, "spread":0, "o/u":0}
             paceBox["gp"] = len(tempBoxes[i])
             if i == 0:
                 paceBox["title"] = "under {}".format(possValues[i])
@@ -137,7 +138,7 @@ class Team:
 
 
     def getRecords(self, key):
-        return self.records[key]
+        return self.records.get(key,None)
 
 
     def getSOSWeights(self):
@@ -157,18 +158,36 @@ class Team:
         return value
 
 
+    def getTeamStats(self):
+        """This function is put into a thread and sent to dB.run
+        """
+        req = self.newStatAvgs()
+        req.callback = None
+        return req
+
+
     def getValueColor(self, key, value, reverse=False):
-        return self.league.overview.getBackgroundColor(key, value, reverse)
+        return self.league.overview.getTeamBackgroundColor(key, value, reverse)
 
 
     def newGamePool(self):
         req = Request()
         req.args = (self.league.season, self._teamId)
         req.callback = self.setGamePool
-        req.cmd = gamePoolCmd
+        req.cmd = gamePoolCmd.format(self.league._leagueId)
         req.fetch = "fetchAll"
-        req.labels = ("gameId", "gameDate", "oppId", "poss", "teamPts", "oppPts", "isHome",
-                        "isWinner", "result", "money", "spread", "o/u", "isCover", "isOver")
+        req.labels = ("leagueId", "gameId", "gameDate", "oppId", "poss", "teamPts", "oppPts", "isHome",
+                        "isWinner", "result", "money", "spread", "total", "o/u", "isCover", "isOver")
+        return req
+
+
+    def newPlayers(self):
+        req = Request()
+        req.args = (self._teamId,)
+        req.callback = self.setPlayers
+        req.cmd = self.league._newPlayer._newPlayerCmd.format(self.getActiveSql())
+        req.fetch = "fetchAll"
+        req.labels = self.league._newPlayer._newPlayerLabels
         return req
 
 
@@ -225,16 +244,27 @@ class Team:
 
 
     def setPlayers(self, players):
-        assert isinstance(players, list)
-        self.players = players
+        for info in players:
+            self.players[info["playerId"]] = self.league._newPlayer(team=self, playerInfo=info)
+
+
+
+    def getPlayers(self, *, item="pts"):
+        players = sorted(self.players.values(), key=lambda player: player.getItem(item), reverse=True)
+        return players
+
 
 
     def setRecords(self, records):
         self.records = records.copy()
 
 
-    def setSOS(self, value):
-        self.sos["SOS"] = value
+    def setSOS(self, oppPtsScore, victoryScore, homeScore, awayScore):
+        self.sos["oppPtsScore"] = oppPtsScore
+        self.sos["victoryScore"] = victoryScore
+        self.sos["homeScore"] = homeScore
+        self.sos["awayScore"] = awayScore
+        self.sos["SOS"] = oppPtsScore+victoryScore+homeScore+awayScore
 
 
     def setSOSWeights(self, awayWeight, homeWeight):
@@ -253,15 +283,51 @@ class Team:
 
 class NBATeam(Team):
 
+    _b2B = False
     _possValues = (193, 198, 203, 209)
 
     def __init__(self, league=None, teamInfo=None):
         super().__init__(league, teamInfo)
 
+        self.b2B = False
+
+
+    def newB2B(self):
+        yesterday = date.today() - timedelta(1)
+        req = Request()
+        req.args = (yesterday.year, "{}.{}".format(*str(yesterday).split("-")[1:]), self._teamId)
+        req.callback = self.setB2B
+        req.cmd = b2BCmd
+        req.fetch = "fetchItem"
+        req.labels = ( "gameId",)
+        return req
+
+
+    def setB2B(self, item):
+        self.b2B = True if item else False
+
 
 class NCAABTeam(Team):
 
+    _b2B = False
     _possValues = (127, 133, 138, 145)
 
     def __init__(self, league=None, teamInfo=None):
         super().__init__(league, teamInfo)
+
+        self.b2B = False
+
+
+    def newB2B(self):
+        yesterday = date.today() - timedelta(1)
+        req = Request()
+        req.args = (yesterday.year, "{}.{}".format(*str(yesterday).split("-")[1:]), self._teamId)
+        req.callback = self.setB2B
+        req.cmd = b2BCmd
+        req.fetch = "fetchItem"
+        req.labels = ( "gameId",)
+        return req
+
+
+    def setB2B(self, item):
+        self.b2B = True if item else False

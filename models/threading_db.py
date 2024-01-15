@@ -17,6 +17,7 @@ class Request:
         self.args = None
         self.callback = None
         self.cmd = None
+        self.event = None
         self.fetch = None
         self.labels = None
         self.value = None

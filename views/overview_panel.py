@@ -29,22 +29,19 @@ class OverviewFrame(wx.Frame):
     _totalLabels = ("team", "gp", "over%", "overROI", "underROI", "o/u", "total")
 
     def __init__(self, parent, teamIds=[], *args, **kwargs):
-        super().__init__(parent, size=(550,400), *args, **kwargs)
+        super().__init__(parent, size=(625,400), *args, **kwargs)
         self.Bind(EVT_Overview, self.setPanel)
 
         self.panel = BasePanel(self)
         self.teamIds = teamIds
 
-        self.optionsPanel = OptionsPanel(self.panel)
-        # self.optionsPanel.SetBackgroundColour(wx.Colour("green"))
-
         self.viewOptions = wx.RadioBox(self.panel, choices=["money", "spread", "totals"], majorDimension=3, style=wx.RA_SPECIFY_COLS)
         self.viewOptions.Bind(wx.EVT_RADIOBOX, self.onViewOptions)
 
-        self.moneyView = OverviewListView(self.panel, size=(-1, 200), style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
-        self.spreadView = OverviewListView(self.panel, size=(-1, 200), style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
+        self.moneyView = OverviewListView(self.panel,  style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
+        self.spreadView = OverviewListView(self.panel,  style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
         self.spreadView.Hide()
-        self.totalView = OverviewListView(self.panel, size=(-1, 200), style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
+        self.totalView = OverviewListView(self.panel,  style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES)
         self.totalView.Hide()
 
         self._setViewColumns(self.moneyView, self._moneyLabels)
@@ -52,11 +49,10 @@ class OverviewFrame(wx.Frame):
         self._setViewColumns(self.totalView, self._totalLabels)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.viewOptions, 0, wx.CENTER | wx.BOTTOM, 5)
-        sizer.Add(self.moneyView, 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(self.spreadView, 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(self.totalView, 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(self.optionsPanel, 0, wx.ALL|wx.EXPAND, 5)
+        sizer.Add(self.viewOptions, 0, wx.CENTER | wx.BOTTOM)
+        sizer.Add(self.moneyView, 1, wx.ALL|wx.EXPAND, 25)
+        sizer.Add(self.spreadView, 1, wx.ALL|wx.EXPAND, 25)
+        sizer.Add(self.totalView, 1, wx.ALL|wx.EXPAND, 25)
         self.panel.SetSizer(sizer)
 
 
@@ -83,6 +79,8 @@ class OverviewFrame(wx.Frame):
 
     def setPanel(self, evt):
         info = evt.GetValue()
+
+        info = [x for x in info if (x["ML"] != None and x["spread"] != None and x["o/u"] != None)]
 
         for key, listView, labels in (("money", self.moneyView, self._moneyLabels), ("spread", self.spreadView, self._spreadLabels),
                                 ("totals", self.totalView, self._totalLabels)):

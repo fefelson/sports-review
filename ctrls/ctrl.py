@@ -13,70 +13,34 @@ class Ctrl:
         self.focusedGame = None
 
 
-    def onClick(self, evt):
+    def onMoney(self, evt):
+        print("Money", evt.GetEventObject().GetName())
+        self.oddsFrame = GameOddsFrame(None)
+        self.oddsFrame.Show()
         gameId = evt.GetEventObject().GetName()
-        game = self.league.games[gameId]
 
-
-        awayFrame = wx.Frame(None)
-        awaySizer = wx.BoxSizer()
-        awayPanel = TitlePanel(awayFrame)
-        awayPanel.bind(self.titleClick)
-        awayPanel.setPanel(game=game, hA="away")
-        awaySizer.Add(awayPanel)
-        awayFrame.SetSizer(awaySizer)
-        awayFrame.Fit()
-        awayFrame.Show()
-
-        # put bindings in better place
-        for widge in [awayPanel.matchupPanel.values[hA] for hA in ("away", "home")]:
-            widge.Bind(wx.EVT_LEFT_DCLICK, self.onMoney)
-
-        awayPanel.matchupPanel.spread.Bind(wx.EVT_LEFT_DCLICK, self.onSpread)
-        awayPanel.matchupPanel.ou.Bind(wx.EVT_LEFT_DCLICK, self.onOU)
-
-        homeFrame = wx.Frame(None)
-        homeSizer = wx.BoxSizer()
-        homePanel = TitlePanel(homeFrame)
-        homePanel.bind(self.titleClick)
-        homeLog = GameLogPanel(homeFrame)
-        homePanel.setPanel(game=game, hA="home")
-        homeLog.setPanel(game.getTeam("home").getGameLog(), game.getTeam("home").getActiveIds(), )
-        homeSizer.Add(homePanel)
-        homeSizer.Add(homeLog)
-        homeFrame.SetSizer(homeSizer)
-        homeFrame.Fit()
-        homeFrame.Show()
-
-        # put bindings in better place
-        for widge in [homePanel.matchupPanel.values[hA] for hA in ("away", "home")]:
-            widge.Bind(wx.EVT_LEFT_DCLICK, self.onMoney)
-
-        homePanel.matchupPanel.spread.Bind(wx.EVT_LEFT_DCLICK, self.onSpread)
-        homePanel.matchupPanel.ou.Bind(wx.EVT_LEFT_DCLICK, self.onOU)
-
-
-    def getGameStats(self, event):
-        gameId, oppId = event.GetEventObject().GetName().split()
-        req = self.league.getGameStats(gameId, oppId)
-        worker = GameStatsThread(self.statsPanel, self.league.dB.run, req)
-        worker.setResultType(BasketballTeamStats)
+        req = self.league.getOddsView(gameId)
+        worker = GameOddsThread(self.oddsFrame, self.league.dB.run, req)
         worker.start()
 
 
-    def onCollapse(self, event):
-        if event.GetEventObject().IsExpanded():
-            for game in self.panel.panels.values():
-                game.isActive.Show()
-                game.Layout()
-        else:
-            for game in self.panel.panels.values():
-                game.isActive.Hide()
-                game.Layout()
-        self.panel.Layout()
+    def onSpread(self, evt):
+        print("Spread", evt.GetEventObject().GetName())
+        self.spreadFrame = PointSpreadFrame(None)
+        self.spreadFrame.Show()
+        gameId = evt.GetEventObject().GetName()
+
+        req = self.league.getSpreadView(gameId)
+        worker = PointSpreadThread(self.spreadFrame, self.league.dB.run, req)
+        worker.start()
 
 
-    def getOverview(self):
-        req = self.league.overview.getOverview()
-        worker = OverviewThread(self.panel, self.league.dB.run, req)
+    def onTotal(self, evt):
+        print("O/U", evt.GetEventObject().GetName())
+        self.totalFrame = TotalFrame(None)
+        self.totalFrame.Show()
+        gameId = evt.GetEventObject().GetName()
+
+        req = self.league.getTotalView(gameId)
+        worker = TotalThread(self.totalFrame, self.league.dB.run, req)
         worker.start()

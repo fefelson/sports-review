@@ -53,6 +53,23 @@ overviewCmd = """
                 """
 
 
+basketballPlayerReportCmd = """
+                    SELECT COUNT(ps.game_id), AVG(starter)*100,
+                            AVG(fga), AVG(fgm), AVG(fgm)/AVG(fga)*100, AVG(fta), AVG(ftm),
+                            AVG(ftm)/AVG(fta)*100, AVG(tpa), AVG(tpm), AVG(tpm)/AVG(tpa)*100, AVG(pts),
+                            AVG(oreb), AVG(reb), AVG(ast), AVG(stl), AVG(blk), AVG(trn),
+                            AVG(fls), AVG(mins) {}
+                        FROM player_stats AS ps
+                        INNER JOIN lineups
+                            ON ps.game_id = lineups.game_id AND ps.player_id = lineups.player_id AND ps.team_id = lineups.team_id
+                        INNER JOIN games AS gm
+                            ON ps.game_id = gm.game_id AND (ps.team_id = gm.away_id OR ps.team_id = gm.home_id)
+                        WHERE season = ? AND ps.opp_id != -1
+                        GROUP BY ps.player_id
+                        HAVING AVG(mins) > 0
+                    """
+
+
 teamReportCmd = """
                 SELECT ROUND(((SUM(CASE WHEN gl.team_id = winner_id THEN 1 ELSE 0 END)*1.0) / IFNULL(COUNT(gm.game_id), 2))*100 , 1) AS win_pct,
                         ROUND(((SUM(CASE WHEN spread_outcome = 1 THEN 1 ELSE 0 END)*1.0) / IFNULL(COUNT(spread), 1))*100 , 2) AS cover_pct,

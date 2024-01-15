@@ -1,3 +1,24 @@
+import matplotlib.colors as mcolors
+
+
+
+def color_difference(color1, color2):
+    """Calculate the color difference between two RGB colors."""
+    return sum((c1 - c2) ** 2 for c1, c2 in zip(color1, color2))
+
+def closest_named_color(hex_color):
+    """Find the closest named color to a given hex color."""
+    try:
+        target_rgb = hex_to_rgb(hex_color)
+        closest_color = min(mcolors.cnames, key=lambda name: color_difference(target_rgb, hex_to_rgb(mcolors.cnames[name])))
+    except:
+        closest_color = "grey"
+
+    # Calculate color differences and find the minimum
+    closest_color = "grey" if closest_color == "white" else closest_color
+    return closest_color
+
+
 
 
 def adjust_color_for_readability(color, brightness_adjustment, saturation_adjustment, hue_adjustment):

@@ -16,7 +16,7 @@ class PossesionsFrame(wx.Frame):
                  }
 
     def __init__(self, parent, ctrl, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
+        super().__init__(parent, size=(500,500), *args, **kwargs)
         self.Bind(EVT_Possessions, self.setPanel)
 
         self.possessPanel = BasePanel(self)
@@ -77,7 +77,6 @@ class PossesionsFrame(wx.Frame):
         team = evt.GetValue()
         poss = team.getPossessions()
         totalGames = sum([p["gp"] for p in poss["boxes"]])
-        print(totalGames)
         self.teamName.SetLabel(team.getInfo("abrv"))
         self.mean.SetLabel("mean: {:.1f}".format(poss["mean"]))
         self.median.SetLabel("median: {:.1f}".format(poss["median"]))
@@ -90,11 +89,11 @@ class PossesionsFrame(wx.Frame):
             possBox["total"].SetLabel("gp: {}".format(box["gp"]))
             possBox["total%"].SetLabel("gp%: {:.0f}%".format(box["gp"]/totalGames*100))
             if box["gp"]:
+                possBox["spread"].SetLabel("spread: {:.1f}".format(box["spread"]))
+                possBox["o/u"].SetLabel("o/u: {:.1f}".format(box["o/u"]))
                 possBox["win%"].SetLabel("win%: {:.0f}%".format(box["win%"]))
                 possBox["cover%"].SetLabel("cover%: {:.0f}%".format(box["spread%"]))
                 possBox["over%"].SetLabel("over%: {:.0f}%".format(box["over%"]))
-                possBox["spread"].SetLabel("spread: {:.1f}".format(box["spread"]))
-                possBox["o/u"].SetLabel("o/u: {:.1f}".format(box["o/u"]))
 
 
         self.possessPanel.Layout()

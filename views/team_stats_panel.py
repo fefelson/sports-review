@@ -1,6 +1,7 @@
 import wx
 from .base_panel import BasePanel
 from ..events import EVT_GameStats
+from ..events import EVT_TeamStats
 
 
 class BasketballStatsPanel(BasePanel):
@@ -10,6 +11,7 @@ class BasketballStatsPanel(BasePanel):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.Bind(EVT_GameStats, self.setPanel)
+        self.Bind(EVT_TeamStats, self.setPanel)
 
         self.values = {"offense": {}, "defense":{}}
         self._Layout()
@@ -77,8 +79,13 @@ class BasketballStatsPanel(BasePanel):
         self.SetSizer(mainSizer)
 
 
-    def setPanel(self, evt):
-        teamStats = evt.GetValue()
+    def setPanel(self, evt=None, *,team=None):
+
+        if evt:
+            teamStats = evt.GetValue()
+
+        if team:
+            teamStats = team.stats
         for offDef in ("offense", "defense"):
             for key in ("name", "pts", "fga", "fgm", "fg%", "fta", "ftm", "ft%", "tpa", "tpm", "tp%",
                         "oreb%", "dreb%", "tov%"):
@@ -93,7 +100,14 @@ class BasketballStatsPanel(BasePanel):
                             strForm = "{:.0f}%"
                         else:
                             strForm = "{:.0f}"
-                        self.values[offDef][key].SetLabel(strForm.format(teamStats.getValue("{}_{}".format(offDef, key))))
+                        value = teamStats.getValue("{}_{}".format(offDef, key))
+                        self.values[offDef][key].SetLabel(strForm.format(value))
+                        if team:
+                            reverse = True if (offDef == "defense" or key == "tov%") else False
+                            backColor, textColor = team.getValueColor(key, value, reverse)
+                            self.values[offDef][key].SetBackgroundColour(backColor)
+                            self.values[offDef][key].SetForegroundColour(textColor)
+
                     except AssertionError:
                         self.values[offDef][key].SetLabel("--")
         self.Layout()

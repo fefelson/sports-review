@@ -1,15 +1,17 @@
 import datetime
 import wx
 
+from threading import Event
+
+from ..helpers import countResults, getRequest
 from FelsonSports import Environ as ENV
 
-from pprint import pprint
 
 logoPath = ENV.logoPath
 
 class ThumbPanel(wx.Panel):
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, ctrl, *args, **kwargs):
         super().__init__(parent, size=(120,120), style=wx.BORDER_SIMPLE, *args, **kwargs)
         self.SetBackgroundColour(wx.Colour("WHITE"))
 
@@ -29,9 +31,11 @@ class ThumbPanel(wx.Panel):
 
         self.spread = wx.StaticText(self, label="NONE")
         self.spread.SetFont(baseFont)
+        self.spread.Bind(wx.EVT_LEFT_DCLICK, ctrl.onSpread)
 
         self.ou = wx.StaticText(self)
         self.ou.SetFont(baseFont)
+        self.ou.Bind(wx.EVT_LEFT_DCLICK, ctrl.onTotal)
 
         lineSizers = {}
 
@@ -42,6 +46,7 @@ class ThumbPanel(wx.Panel):
 
             value = wx.StaticText(self)
             value.SetFont(baseFont)
+            value.Bind(wx.EVT_LEFT_DCLICK, ctrl.onMoney)
             self.values[hA] = value
 
             logo = wx.StaticBitmap(self)
@@ -74,6 +79,8 @@ class ThumbPanel(wx.Panel):
         gd = game.getGamedate()
         odds = game.getOdds()
 
+        book = odds.getBook()
+
         self.SetName("{}".format(gameId))
 
         self.gameDate.SetName("{}".format(gameId))
@@ -82,14 +89,34 @@ class ThumbPanel(wx.Panel):
         self.gameTime.SetName("{}".format(gameId))
         self.gameTime.SetLabel(gd.strftime("%I:%M %p"))
 
-
-        self.spread.SetName("{}".format(gameId))
-        self.spread.SetLabel("{}  {}".format(game.getTeam("home").getInfo("abrv"), odds.getItem(group="spread", item="homeSpread")))
+        try:
+            spread = None
+            for i in range(len(book["spread"])):
+                x = book["spread"][(i+1)*-1].get("homeSpread", None)
+                if x:
+                    spread = x
+                    break
+                else:
+                    x = book["spread"][(i+1)*-1].get("awaySpread", None)
+                    if x:
+                        spread = x
+                        break
+            self.spread.SetName("{}".format(gameId))
+            self.spread.SetLabel("{}  {}".format(game.getTeam("home").getInfo("abrv"), spread))
+        except:
+            self.spread.SetName("{}".format(gameId))
+            self.spread.SetLabel("{}  {}".format("--", "--"))
 
         self.ou.SetName("{}".format(gameId))
 
         try:
-            self.ou.SetLabel("{:.1f}".format(float(odds.getItem(group="total", item="total"))))
+            oU = None
+            for i in range(len(book["total"])):
+                x = book["total"][(i+1)*-1].get("total", None)
+                if x:
+                    oU = x
+                    break
+            self.ou.SetLabel("{:.1f}".format(float(oU)))
         except:
             self.ou.SetLabel("--")
 
@@ -108,9 +135,16 @@ class ThumbPanel(wx.Panel):
             logo = logo.ConvertToBitmap()
             self.logos[hA].SetBitmap(logo)
 
-            self.values[hA].SetName("{}".format(gameId))
+            self.values[hA].SetName("{} {}".format(hA, gameId))
             try:
-                self.values[hA].SetLabel("{:.0f}".format(odds.getItem(group="money", item="{}ML".format(hA))))
+                mL = None
+                for i in range(len(book["money"])):
+                    x = book["money"][(i+1)*-1].get("{}ML".format(hA), None)
+                    if x:
+                        mL = x
+                        break
+
+                self.values[hA].SetLabel("{:.0f}".format(mL))
             except:
                 self.values[hA].SetLabel("--")
 
@@ -119,8 +153,7 @@ class ThumbPanel(wx.Panel):
 
     def bind(self, cmd):
         self.Bind(wx.EVT_LEFT_DCLICK, cmd)
-        for item in (*self.abrvs.values(), *self.logos.values(), *self.values.values(), self.spread,
-                        self.ou, self.gameDate, self.gameTime):
+        for item in (*self.abrvs.values(), *self.logos.values(), self.gameDate, self.gameTime):
             item.Bind(wx.EVT_LEFT_DCLICK, cmd)
 
 
@@ -140,12 +173,73 @@ class MatchupFrame(wx.Frame):
         self.SetSizer(self.sizer)
 
 
-    def addPanels(self, games, bindCmd=None):
+    def addPanels(self, games, ctrl):
         games = sorted(games, key= lambda x: x.getInfo("gameTime"))
         for game in games:
-            newPanel = ThumbPanel(self.scrolledPanel)
+            newPanel = ThumbPanel(self.scrolledPanel, ctrl)
             newPanel.setPanel(game)
-            if bindCmd:
-                newPanel.bind(bindCmd)
+            
+            try:
+                awayML = game.odds.getItem("money", "awayML")
+                homeML = game.odds.getItem("money", "homeML")
+                spread = game.odds.getItem("spread", "homeSpread")
+
+                color = "WHITE"
+                newEvent = Event()
+                exactReq = getRequest(homeML=homeML, awayML=awayML, homeSpread=spread)
+                exactReq.event = newEvent
+                ctrl.league.dB.run(exactReq)
+                result = countResults(exactReq.value)
+
+                for hA in ("away", "home"):
+                    if (result["gp"] >= 50 and
+                        (result[hA].get("winROI", 0) >= 5 or result[hA].get("coverROI", 0) >= 5)):
+                        color = "MAGENTA"
+
+                exactMoneyReq = getRequest(homeML=homeML, awayML=awayML)
+                ctrl.league.dB.run(exactMoneyReq)
+                result = countResults(exactMoneyReq.value)
+
+
+                for hA in ("away", "home"):
+                    if (result["gp"] >= 50 and
+                        (result[hA].get("winROI", 0) >= 5 or result[hA].get("coverROI", 0) >= 5)):
+                        color = "SPRING GREEN"
+
+
+
+                newPanel.SetBackgroundColour(wx.Colour(color))
+
+
+            except:
+                pass
+
+            for hA in ("away", "home"):
+                backColor = "WHITE"
+                team = game.getTeam(hA)
+                winColor, _ = team.getValueColor("teamMoneyROI", team.getOdds("teamMoneyROI"))
+                atsColor, _ = team.getValueColor("cover%", team.getRecords("cover%"))
+                oColor, _ = team.getValueColor("overROI", team.getOdds("overROI"))
+                uColor, _ = team.getValueColor("underROI", team.getOdds("underROI"))
+
+                if atsColor == "gold":
+                    backColor = "SEA GREEN"
+                elif atsColor == "red":
+                    backColor = "BLACK"
+                elif winColor == "gold":
+                    backColor = "GOLD"
+                elif winColor == "red":
+                    backColor = "PURPLE"
+                elif atsColor == "red":
+                    backColor = "BLACK"
+                elif oColor == "gold":
+                    backColor = "RED"
+                elif uColor == "gold":
+                    backColor = "BLUE"
+
+                newPanel.abrvs[hA].SetBackgroundColour(backColor)
+
+            newPanel.bind(ctrl.onClick)
+
             self.scrollSizer.Add(newPanel, 0, wx.ALL, 5)
         self.Layout()

@@ -2,6 +2,7 @@ import wx
 
 from .base_panel import BasePanel
 from .matchup_thumb_panel import ThumbPanel
+from .tags_panel import TagPanel
 from ..helpers import adjust_readability, hex_to_rgb
 
 
@@ -9,23 +10,25 @@ imagePath = "/home/ededub/FEFelson/{}/logos/{}.png"
 
 class TitlePanel(BasePanel):
 
-    def __init__(self, parent, ctrl, hA="home", *args, **kwargs):
+    def __init__(self, parent, ctrl, *args, **kwargs):
         super().__init__(parent, size=(750,-1), *args, **kwargs)
-
 
         self.sos = {}
         self.money = {}
 
         self.overallPanel = BasePanel(self, size=(180,160), style=wx.BORDER_SIMPLE)
-        self.matchupPanel = ThumbPanel(self)
+        self.matchupPanel = ThumbPanel(self, ctrl)
         self.matchupPanel.SetSize((160,160))
 
+        self.tagPanel = TagPanel(self)
+
         overallLabel = self.createStaticText(self.overallPanel, label="Overall", fontSize=12, bold=True)
-        sosLabel = self.createStaticText(self.overallPanel, label="SOS", fontSize=12, bold=True)
+        self.sosLabel = self.createStaticText(self.overallPanel, label="SOS", fontSize=12, bold=True)
 
 
         self.sos["score"] = self.createStaticText(self.overallPanel, label="00", fontSize=28, bold=True)
         self.sos["SOS"] = self.createStaticText(self.overallPanel, label="00", fontSize=20, bold=True)
+        self.sos["SOS"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onSOS)
 
         self.sos["offEff"] = self.createStaticText(self.overallPanel, label="000", fontSize=12, bold=True)
         self.sos["offEff"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onOffDef)
@@ -36,17 +39,22 @@ class TitlePanel(BasePanel):
         self.sos["poss"] = self.createStaticText(self.overallPanel, label="000", fontSize=12, bold=True)
         self.sos["poss"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onPoss)
 
-        self.logo = wx.StaticBitmap(self)
+        logoPanel = BasePanel(self)
+        logoPanel.SetBackgroundColour(wx.Colour("GREY"))
+        self.logo = wx.StaticBitmap(logoPanel)
 
         self.firstName = self.createStaticText(self, label="First", fontSize=18, bold=True)
+        self.firstName.Bind(wx.EVT_LEFT_DCLICK, ctrl.onTeam)
         self.firstName.SetMaxSize(wx.Size(200,-1))
+
         self.lastName = self.createStaticText(self, label="Last", fontSize=20, bold=True)
+        self.lastName.Bind(wx.EVT_LEFT_DCLICK, ctrl.onTeam)
         self.lastName.SetMaxSize(wx.Size(200,-1))
 
 
 
-        gamesLabel = self.createStaticText(self, label="gp", fontSize=18, bold=True)
-        self.games = self.createStaticText(self, label="0", fontSize=18, bold=True)
+        gamesLabel = self.createStaticText(self, label="gp", fontSize=10, bold=True)
+        self.games = self.createStaticText(self, label="0", fontSize=15, bold=True)
         self.games.Bind(wx.EVT_LEFT_DCLICK, ctrl.onGP)
 
         winPctLabel = self.createStaticText(self, label="WIN Pct:", fontSize=12, bold=False)
@@ -58,10 +66,20 @@ class TitlePanel(BasePanel):
 
 
         self.money["win%"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
+        self.money["win%"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onWinPct)
+
         self.money["teamMoneyROI"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
+        self.money["teamMoneyROI"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onWinROI)
+
         self.money["cover%"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
+        self.money["cover%"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onCoverPct)
+
         self.money["teamSpreadROI"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
+        self.money["teamSpreadROI"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onCoverROI)
+
         self.money["ou%"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
+        self.money["ou%"].Bind(wx.EVT_LEFT_DCLICK, ctrl.onTotalPct)
+
         self.money["ouROI"] = self.createStaticText(self, label="0%", fontSize=12, bold=True)
 
 
@@ -79,7 +97,7 @@ class TitlePanel(BasePanel):
         overallSizer = wx.BoxSizer(wx.VERTICAL)
         overallSizer.Add(overallLabel, 0, wx.CENTER)
         overallSizer.Add(self.sos["score"], 0, wx.CENTER)
-        overallSizer.Add(sosLabel, 0, wx.CENTER)
+        overallSizer.Add(self.sosLabel, 0, wx.CENTER)
         overallSizer.Add(self.sos["SOS"], 0, wx.CENTER)
         overallSizer.Add(offDefSizer, 0, wx.EXPAND)
 
@@ -87,9 +105,10 @@ class TitlePanel(BasePanel):
         self.overallPanel.SetSizer(overallSizer)
 
 
+        sizer = wx.BoxSizer(wx.VERTICAL)
         mainSizer = wx.BoxSizer()
         outSideSizer = wx.BoxSizer(wx.VERTICAL)
-        outSideSizer.Add(self.logo, 0, wx.CENTER)
+        outSideSizer.Add(logoPanel, 0, wx.CENTER)
         outSideSizer.Add(gamesLabel, 0, wx.CENTER)
         outSideSizer.Add(self.games, 0, wx.CENTER)
 
@@ -112,33 +131,41 @@ class TitlePanel(BasePanel):
         middleSizer.Add(self.lastName, 0, wx.CENTER)
         middleSizer.Add(moneySizer, 1, wx.EXPAND | wx.ALL, 20)
 
-        if hA == "home":
-            mainSizer.Add(self.overallPanel, 0, wx.EXPAND)
-            mainSizer.Add(middleSizer, 1, wx.LEFT | wx.RIGHT, 5)
-            mainSizer.Add(outSideSizer, 0, wx.EXPAND)
-            mainSizer.Add(self.matchupPanel, 0, wx.ALL, 10)
+        mainSizer.Add(self.overallPanel, 0, wx.EXPAND)
+        mainSizer.Add(middleSizer, 1, wx.LEFT | wx.RIGHT, 5)
+        mainSizer.Add(outSideSizer, 0, wx.EXPAND)
+        mainSizer.Add(self.matchupPanel, 0, wx.ALL, 10)
 
-        else:
-            mainSizer.Add(self.matchupPanel, 0, wx.ALL, 10)
-            mainSizer.Add(outSideSizer, 0, wx.EXPAND)
-            mainSizer.Add(middleSizer, 1, wx.LEFT | wx.RIGHT, 5)
-            mainSizer.Add(self.overallPanel, 0, wx.EXPAND)
+        sizer.Add(mainSizer, 1, wx.EXPAND)
+        sizer.Add(self.tagPanel, 0, wx.EXPAND)
+        self.SetSizer(sizer)
 
-        self.SetSizer(mainSizer)
 
+    def collapse(self):
+        # print("TitlePanel.collapse")
+        self.sosLabel.Hide()
+        self.sos["SOS"].Hide()
+        self.logo.Hide()
+        self.matchupPanel.Hide()
+        self.Layout()
+
+
+    def inflate(self):
+        # print("TitlePanel.inflate")
+        self.sosLabel.Show()
+        self.sos["SOS"].Show()
+        self.logo.Show()
+        self.matchupPanel.Show()
+        self.Layout()
 
     def setPanel(self, *, game=None, team=None, hA=None):
-        if not game and not team:
-            raise AssertionError("Panel must be given a game or a team")
         if game and not hA:
-            raise AssertionError("A game object must have hA flag set with 'home' or 'away'")
-        if hA:
-            self.hA = hA
-
+            raise AssertionError("game must include hA")
         if game:
             team = game.getTeam(hA)
             self.matchupPanel.setPanel(game)
             self.matchupPanel.gameDate.SetLabel("Today's Game")
+            self.tagPanel.setPanel(team)
 
         try:
             primaryColor, secondColor = team.getColors()
@@ -153,10 +180,10 @@ class TitlePanel(BasePanel):
         self.overallPanel.SetForegroundColour(wx.Colour(backColor))
 
         self.firstName.SetLabel(team.getInfo("firstName"))
-        self.firstName.SetName("{} {}".format("name", team.getInfo("teamId")))
+        self.firstName.SetName("{} {}".format(hA, team.getInfo("teamId")))
 
         self.lastName.SetLabel(team.getInfo("lastName"))
-        self.lastName.SetName("{} {}".format("name", team.getInfo("teamId")))
+        self.lastName.SetName("{} {}".format(hA, team.getInfo("teamId")))
 
         try:
             logo = wx.Image(imagePath.format(team.getInfo("leagueId"), team.getInfo("teamId")), wx.BITMAP_TYPE_ANY).Scale(125, 125, wx.IMAGE_QUALITY_HIGH).ConvertToBitmap()

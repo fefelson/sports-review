@@ -1,5 +1,17 @@
+
+b2BCmd = """
+            SELECT IFNULL(ts.game_id, 0)
+                FROM team_stats AS ts
+                INNER JOIN games AS g
+                    ON ts.game_id = g.game_id AND (ts.team_id = g.home_id OR ts.team_id = g.away_id)
+                WHERE game_year = ? AND game_date = ? AND team_id = ?
+            """
+
+
+
 gamePoolCmd = """
-                SELECT gm.game_id,
+                SELECT '{}',
+                        gm.game_id,
                         game_time,
                         team.opp_id,
                         CAST(((team.fga)+(team.trn)+(.44*(team.fta))-(team.oreb)) * 48.0 / (minutes) +
@@ -11,6 +23,7 @@ gamePoolCmd = """
                         result,
                         money,
                         spread,
+                        total,
                         ou,
                         spread_outcome AS is_cover,
                         ov.outcome AS is_over
@@ -84,6 +97,8 @@ teamRecordsCmd = """
                         ON gl.game_id = ov.game_id
                     WHERE gl.team_id = ? AND gl.{}
                 """
+
+
 
 teamStatsCmd = """
                 SELECT COUNT(team.game_id) AS gp,
